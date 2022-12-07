@@ -1,10 +1,14 @@
 import React from "react";
 
+import { Response as CreateResponse } from "~/pages/api/playlist"
 import { useForm } from "react-hook-form";
-import { DEFAULT_CARD_COLOR } from "~/config/common.config";
+import { useSpotify } from "~/hooks/useSpotify.hook"
+import { useList } from "~/hooks/useList.hook"
 import { Model } from "~/models/Playlist.model";
+import slugify from "slugify";
 
 import { BarsArrowDownIcon } from "@heroicons/react/20/solid";
+import { DEFAULT_CARD_COLOR } from "~/config/common.config";
 
 import styles from "./Form.module.css";
 
@@ -14,7 +18,14 @@ interface Props {
   children?: React.ReactNode;
 }
 
-export const Form: React.FC<Props> = ({}) => {
+export const Form: React.FC<Props> = ({ }) => {
+
+  const { mutate } = useList({
+    limit: 0,
+    revalidateOnMount: false,
+    revalidateOnFocus: false
+  });
+
   const {
     register,
     setValue,
@@ -24,7 +35,7 @@ export const Form: React.FC<Props> = ({}) => {
   } = useForm<FormData>({
     defaultValues: {
       name: "",
-      owner: "",
+      owner: useSpotify().me?.display_name || "",
       slug: "",
       upvote: 0,
       spotifyId: "",
@@ -35,13 +46,22 @@ export const Form: React.FC<Props> = ({}) => {
   const [loading, setLoading] = React.useState(false);
 
   const onSubmit = handleSubmit(async (data) => {
+    data.slug = slugify(data.name);
     setLoading(true);
-    console.log(data);
+    
+    const response: Response = await fetch("/api/playlist", {
+      method: "POST",
+      body: JSON.stringify(data),
+      headers: {
+        "Content-Type": "application/json"
+      },
+    });
+    const result: CreateResponse = await response.json();
 
-    setTimeout(() => {
-      setLoading(false);
-      reset();
-    }, 2000);
+    mutate();
+    setLoading(false);
+    
+    return result;
   });
 
   return (
